@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "prisma://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcGlfa2V5IjoiOTE3NjM2NTktMmIxYi00OTA4LTg2ZjEtYmJiZGZkMWUyMWNjIiwidGVuYW50X2lkIjoiM2JlNGRmNjhjMjA2YTU3MjI0Zjg0ZTg4NjkzMGI2ZWYyNzg3NzIyOGJiNTU2YmEyZjdjYWUzYWQ5NGZkMTE3MCIsImludGVybmFsX3NlY3JldCI6IjZhMzExYmVjLTJhY2ItNGEyNC1hOTc0LTNlMmE2YWQwNGZiMSJ9.h3y2R6b9QDbBqD6p6bW6xFIQi87cdEYHhuaRZUQja1k"
+  directUrl = env("DATABASE_URL")
+}
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+
+enum UserRole {
+ADMIN
+USER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  password      String?
+  emailVerified DateTime?
+  image         String?
+  role          UserRole   @default(USER)
+  accounts      Account[]
+  projects      Project[]
+  memberOf      Project[] @relation("ProjectMembers")
+  assignedTasks Task[]
+    isTwoFactorEnabled Boolean @default(false)
+  twoFactorConfirmation TwoFactorConfirmation?
+}
+
+model VerificationToken {
+  id String @id @default(cuid())
+  email String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([email, token])
+}
+
+model ResetPasswordToken {
+  id String @id @default(cuid())
+  email String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([email, token])
+
+}
+model Project {
+  id          Int       @id @default(autoincrement())
+  title       String?
+  description String?
+  deadline    DateTime?
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id] )
+  members     User[]    @relation("ProjectMembers")
+  tasks       Task[]
+}
+
+model Task {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  status      String // Enum: "TODO" | "IN_PROGRESS" | "COMPLETED"
+  dueDate     DateTime?
+  assignee    User?     @relation(fields: [assigneeId], references: [id])
+  assigneeId  String? // Foreign key referencing the assignee user's id
+  project     Project   @relation(fields: [projectId], references: [id])
+  projectId   Int // Foreign key referencing the associated project's id
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model TwoFactorToken {
+  id String @id @default(cuid())
+  email String
+  token String @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model TwoFactorConfirmation {
+  id String @id @default(cuid())
+
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
